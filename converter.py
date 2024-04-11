@@ -30,7 +30,7 @@ def onnx_converter(onnx_model_path:str,  output_path:str=None,
 
     keras_model_path = None
     if 'keras' in target_formats:
-        keras_model_path = output_path + ".h5"
+        keras_model_path = output_path + ".keras"
         keras_model.save(keras_model_path)
         LOG.info(f"keras model saved in {keras_model_path}")
 

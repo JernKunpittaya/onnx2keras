@@ -4,6 +4,7 @@ import tensorflow as tf
 
 from utils.op_registry import OPERATOR
 from layers import dimension_utils
+import keras
 
 LOG = logging.getLogger("calculations_layers :")
 
@@ -135,23 +136,38 @@ class TFSqrt():
         return tf.exp(inputs)
 
 @OPERATOR.register_operator("Log")
-class TFLog():
+class TFLog(keras.layers.Layer):
     def __init__(self, *args, **kwargs):
         super().__init__()
 
-    def __call__(self, inputs, *args, **kwargs):
-        return tf.log(inputs)
+    def call(self, inputs, *args, **kwargs):
+        return keras.ops.log(inputs)
 
 @OPERATOR.register_operator("ReduceSum")
-class TFReduceSum():
+class TFReduceSum(keras.layers.Layer):
     def __init__(self, tensor_grap, node_weights, node_inputs, node_attribute, *args, **kwargs):
         super().__init__()
+        self.tensor_grap = tensor_grap
+        self.node_weights = node_weights
+        self.node_inputs = node_inputs
+        self.node_attribute = node_attribute
+
         self.keep_dims = node_attribute.get("keepdims", 1) == 1
         input_shape_len = len(tensor_grap[node_inputs[0]].shape)
         self.axes = [dimension_utils.channel_to_last_dimension(i) if i >=0 else dimension_utils.channel_to_last_dimension(input_shape_len + i) for i in node_attribute.get("axes", [-1])]
 
-    def __call__(self, inputs, *args, **kwargs):
-        return tf.math.reduce_sum(inputs, axis=self.axes, keepdims=self.keep_dims)
+    def call(self, inputs, *args, **kwargs):
+        return keras.ops.sum(inputs, axis = self.axes, keepdims=self.keep_dims)
+    
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            "tensor_grap":self.tensor_grap,
+            'node_weights':self.node_weights,
+            'node_inputs':self.node_inputs,
+            'node_attribute':self.node_attribute
+        })
+        return config
 
 @OPERATOR.register_operator("ReduceMean")
 class TFReduceMean():

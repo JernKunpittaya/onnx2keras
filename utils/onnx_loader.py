@@ -63,7 +63,7 @@ def load_onnx_modelproto(onnx_model_path:str, input_node_names:list=None, output
     if need_simplify:
         success = False
         try:
-            model_proto, success = simplify(model_proto, check_n=1, dynamic_input_shape=dynamic_input)
+            model_proto, success = simplify(model_proto, check_n=1)
         except:
             success = False
         if not success:

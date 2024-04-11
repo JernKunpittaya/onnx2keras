@@ -60,7 +60,8 @@ def keras_builder(onnx_model, native_groupconv:bool=False):
         if input_shape == []:
             continue
         batch_size = 1 if input_shape[0] <= 0 else input_shape[0]
-        input_shape = input_shape[2:] + input_shape[1:2]
+        # input_shape = input_shape[2:] + input_shape[1:2]
+        input_shape = input_shape[1:]
         tf_tensor[inp.name] = keras.Input(shape=input_shape, batch_size=batch_size)
 
     '''
@@ -68,6 +69,10 @@ def keras_builder(onnx_model, native_groupconv:bool=False):
     '''
     for node in model_graph.node:
         op_name, node_inputs, node_outputs = node.op_type, node.input, node.output
+        new_node_inputs = []
+        for ele in node_inputs:
+            new_node_inputs.append(ele)
+        node_inputs = new_node_inputs
         op_attr = decode_node_attribute(node)
         
         tf_operator = OPERATOR.get(op_name)
@@ -88,7 +93,7 @@ def keras_builder(onnx_model, native_groupconv:bool=False):
     outputs_nodes = [tf_tensor[x.name] for x in model_graph.output]
     keras_model = keras.Model(inputs=input_nodes, outputs=outputs_nodes)
     keras_model.trainable = False
-    # keras_model.summary()
+    keras_model.summary()
 
     return keras_model
 
