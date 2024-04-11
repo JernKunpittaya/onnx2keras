@@ -102,38 +102,51 @@ class TFMatMul():
         out = dimension_utils.tensor_NCD_to_NDC_format(out)
         return out
 
+
 @OPERATOR.register_operator("Pow")
-class TFPow():
+class TFPow(keras.layers.Layer):
     def __init__(self, tensor_grap, node_weights, node_inputs, *args, **kwargs):
         super().__init__()
+        self.tensor_grap = tensor_grap
+        self.node_weights = node_weights
+        self.node_inputs = node_inputs
         self.power_index = node_weights[node_inputs[1]]
 
-    def __call__(self, inputs, *args, **kwargs):
-        return tf.pow(inputs, self.power_index)
+    def call(self, inputs, *args, **kwargs):
+        return keras.ops.power(inputs, self.power_index)
+    
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            "tensor_grap":self.tensor_grap,
+            'node_weights':self.node_weights,
+            'node_inputs':self.node_inputs
+        })
+        return config
 
 @OPERATOR.register_operator("Reciprocal")
-class TFReciprocal():
+class TFReciprocal(keras.layers.Layer):
     def __init__(self, *args, **kwargs):
         super().__init__()
 
     def __call__(self, inputs, *args, **kwargs):
-        return 1/inputs
+        return keras.ops.reciprocal(inputs)
 
 @OPERATOR.register_operator("Sqrt")
-class TFSqrt():
+class TFSqrt(keras.layers.Layer):
     def __init__(self, *args, **kwargs):
         super().__init__()
 
     def __call__(self, inputs, *args, **kwargs):
-        return tf.sqrt(inputs)
+        return keras.ops.sqrt(inputs)
 
 @OPERATOR.register_operator("Exp")
-class TFSqrt():
+class TFExp(keras.layers.Layer):
     def __init__(self, *args, **kwargs):
         super().__init__()
 
-    def __call__(self, inputs, *args, **kwargs):
-        return tf.exp(inputs)
+    def cal(self, inputs, *args, **kwargs):
+        return keras.ops.exp(inputs)
 
 @OPERATOR.register_operator("Log")
 class TFLog(keras.layers.Layer):
@@ -151,7 +164,6 @@ class TFReduceSum(keras.layers.Layer):
         self.node_weights = node_weights
         self.node_inputs = node_inputs
         self.node_attribute = node_attribute
-
         self.keep_dims = node_attribute.get("keepdims", 1) == 1
         input_shape_len = len(tensor_grap[node_inputs[0]].shape)
         self.axes = [dimension_utils.channel_to_last_dimension(i) if i >=0 else dimension_utils.channel_to_last_dimension(input_shape_len + i) for i in node_attribute.get("axes", [-1])]

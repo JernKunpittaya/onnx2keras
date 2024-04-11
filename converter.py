@@ -20,9 +20,6 @@ def onnx_converter(onnx_model_path:str,  output_path:str=None,
 
     keras_model = keras_builder(model_proto, native_groupconv)
 
-    if 'tflite' in target_formats:
-        tflite_model = tflite_builder(keras_model, weight_quant, int8_model, image_root, int8_mean, int8_std)
-
     onnx_path, model_name = os.path.split(onnx_model_path)
     if output_path is None:
         output_path = onnx_path
@@ -34,21 +31,15 @@ def onnx_converter(onnx_model_path:str,  output_path:str=None,
         keras_model.save(keras_model_path)
         LOG.info(f"keras model saved in {keras_model_path}")
 
-    tflite_model_path = None
-    if 'tflite' in target_formats:
-        tflite_model_path = output_path + ".tflite"
-        with open(tflite_model_path, "wb") as fp:
-            fp.write(tflite_model)
-
-    convert_result = {"keras":keras_model_path, "tflite":tflite_model_path, "keras_error":0, "tflite_error":0}
+    convert_result = {"keras":keras_model_path,  "keras_error":0}
     # ignore quantization model
     if int8_model:
         return convert_result
     
     error_dict = {}
     try:
-        error_dict = get_elements_error(model_proto, keras_model_path, tflite_model_path)
-        keras_error, tflite_error = error_dict.get("keras", None), error_dict.get("tflite", None)
+        error_dict = get_elements_error(model_proto, keras_model_path)
+        keras_error = error_dict.get("keras", None)
         if keras_error:
             if keras_error > 1e-2:
                 LOG.error("h5 model elements' max error has reached {:^.4E}, but convert is done, please check {} carefully!".format(keras_error, keras_model_path))
@@ -56,13 +47,6 @@ def onnx_converter(onnx_model_path:str,  output_path:str=None,
                 LOG.warning("h5 model elements' max error is {:^.4E}, pass, h5 saved in {}".format(keras_error, keras_model_path))
             else:
                 LOG.info("h5 model elements' max error is {:^.4E}, pass, h5 saved in {}".format(keras_error, keras_model_path))
-        if tflite_error:
-            if tflite_error > 1e-2:
-                LOG.error("tflite model elements' max error has reached {:^.4E}, but convert is done, please check {} carefully!".format(tflite_error, tflite_model_path))
-            elif tflite_error > 1e-4:
-                LOG.warning("tflite model elements' max error is {:^.4E}, pass, tflite saved in {}".format(tflite_error, tflite_model_path))
-            else:
-                LOG.info("tflite model elements' max error is {:^.4E}, pass, tflite saved in {}".format(tflite_error, tflite_model_path))
     except:
         LOG.warning("convert is successed, but model running is failed, please check carefully!")
     

@@ -69,6 +69,7 @@ def keras_builder(onnx_model, native_groupconv:bool=False):
     '''
     for node in model_graph.node:
         op_name, node_inputs, node_outputs = node.op_type, node.input, node.output
+        print("op name: ", op_name)
         new_node_inputs = []
         for ele in node_inputs:
             new_node_inputs.append(ele)
@@ -78,12 +79,15 @@ def keras_builder(onnx_model, native_groupconv:bool=False):
         tf_operator = OPERATOR.get(op_name)
         if tf_operator is None:
             raise KeyError(f"{op_name} not implemented yet")
-        
+        print('op name: ', op_name)
         _inputs = None 
         if len(node_inputs) > 0:
             _inputs = tf_tensor[node_inputs[0]] if node_inputs[0] in tf_tensor else onnx_weights[node_inputs[0]]
 
         for index in range(len(node_outputs)):
+            print('inputt: ', _inputs)
+            print('node_inputs: ', node_inputs)
+            print('tf operator: ', tf_operator)
             tf_tensor[node_outputs[index]] = tf_operator(tf_tensor, onnx_weights, node_inputs, op_attr, index=index)(_inputs)
     
     '''
@@ -94,6 +98,7 @@ def keras_builder(onnx_model, native_groupconv:bool=False):
     keras_model = keras.Model(inputs=input_nodes, outputs=outputs_nodes)
     keras_model.trainable = False
     keras_model.summary()
+    print("All Layers: ", keras_model.layers)
 
     return keras_model
 
