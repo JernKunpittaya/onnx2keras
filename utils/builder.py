@@ -4,10 +4,10 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 import tensorflow as tf
 from tensorflow import keras
 from onnx import numpy_helper
-from utils.op_registry import OPERATOR
-from utils.dataloader import RandomLoader, ImageLoader
+from .op_registry import OPERATOR
+from .dataloader import RandomLoader, ImageLoader
 
-from layers import conv_layers
+from ..layers import conv_layers
 
 # copy from https://github.com/gmalivenko/onnx2keras
 def decode_node_attribute(node)->dict:
@@ -41,7 +41,7 @@ def decode_node_attribute(node)->dict:
 def keras_builder(onnx_model, native_groupconv:bool=False):
 
     conv_layers.USE_NATIVE_GROUP_CONV = native_groupconv
-    
+
     model_graph = onnx_model.graph
 
     '''
@@ -75,12 +75,11 @@ def keras_builder(onnx_model, native_groupconv:bool=False):
             new_node_inputs.append(ele)
         node_inputs = new_node_inputs
         op_attr = decode_node_attribute(node)
-        
+
         tf_operator = OPERATOR.get(op_name)
         if tf_operator is None:
             raise KeyError(f"{op_name} not implemented yet")
-        print('op name: ', op_name)
-        _inputs = None 
+        _inputs = None
         if len(node_inputs) > 0:
             _inputs = tf_tensor[node_inputs[0]] if node_inputs[0] in tf_tensor else onnx_weights[node_inputs[0]]
 
@@ -89,7 +88,7 @@ def keras_builder(onnx_model, native_groupconv:bool=False):
             print('node_inputs: ', node_inputs)
             print('tf operator: ', tf_operator)
             tf_tensor[node_outputs[index]] = tf_operator(tf_tensor, onnx_weights, node_inputs, op_attr, index=index)(_inputs)
-    
+
     '''
         build keras model
     '''

@@ -4,8 +4,8 @@ import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 
-from utils.op_registry import OPERATOR
-from layers.dimension_utils import intfloat_to_list
+from ..utils.op_registry import OPERATOR
+from .dimension_utils import intfloat_to_list
 
 LOG = logging.getLogger("common_layers :")
 
@@ -102,7 +102,7 @@ class TFAveragePool():
         pads = intfloat_to_list(node_attribute.get("pads", [0, 0, 0, 0]), 4)
 
         func = math.floor if ceil_mode == 0 else math.ceil
-        
+
         pad_mode = "SAME"
         input_shape = tensor_grap[node_inputs[0]].shape
         for i in range(len(input_shape)-2):
@@ -111,9 +111,9 @@ class TFAveragePool():
             if func(output_shape_raw) != input_shape[1+i]:
                 pad_mode = "VALID"
                 break
-        
+
         self.avg_pool = keras.layers.AveragePooling2D(pool_size=kernel_shape, strides=strides, padding=pad_mode)
-        
+
         self.pad = None
         if pad_mode == "VALID" and pads is not None and np.sum(pads) > 0:
             self.pad = keras.layers.ZeroPadding2D(padding=((pads[0], pads[2]), (pads[1], pads[3])))
@@ -145,7 +145,7 @@ class TFMaxPool():
                 break
 
         self.max_pool = keras.layers.MaxPool2D(pool_size=kernel_shape, strides=strides, padding=pad_mode)
-        
+
         self.pad = None
         if pad_mode == "VALID" and pads is not None and np.sum(pads) > 0:
             self.pad = keras.layers.ZeroPadding2D(padding=((pads[0], pads[2]), (pads[1], pads[3])))

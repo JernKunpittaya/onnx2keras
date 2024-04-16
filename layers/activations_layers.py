@@ -2,8 +2,8 @@ import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 
-from layers.dimension_utils import channel_to_last_dimension, tensor_NCD_to_NDC_format
-from utils.op_registry import OPERATOR
+from .dimension_utils import channel_to_last_dimension, tensor_NCD_to_NDC_format
+from ..utils.op_registry import OPERATOR
 
 @OPERATOR.register_operator("Relu")
 class TFRelu():
@@ -74,7 +74,7 @@ class TFPRelu():
             if self.slope.ndim > 1:
                 # remove batchsize
                 self.slope = self.slope[0]
-                
+
         self.PRelu = tf.keras.layers.PReLU(weights=[self.slope], shared_axes = [i for i in range(1, input_tensor_shape.ndims-1)])
 
     def __call__(self, inputs):
@@ -144,7 +144,7 @@ class TFSoftplus():
 
     def __call__(self, inputs):
         return keras.activations.softplus(inputs)
-    
+
 @OPERATOR.register_operator("Softsign")
 class TFSoftsign():
     def __init__(self, tensor_grap, node_weights, node_inputs, node_attribute, *args, **kwargs) -> None:
@@ -160,7 +160,7 @@ class TFSelu():
 
     def __call__(self, inputs):
         return keras.activations.selu(inputs)
-    
+
 @OPERATOR.register_operator("Elu")
 class TFElu():
     def __init__(self, tensor_grap, node_weights, node_inputs, node_attribute, *args, **kwargs) -> None:
@@ -168,7 +168,7 @@ class TFElu():
 
     def __call__(self, inputs):
         return keras.activations.elu(inputs)
-    
+
 @OPERATOR.register_operator("Celu")
 class TFCelu():
     def __init__(self, tensor_grap, node_weights, node_inputs, node_attribute, *args, **kwargs) -> None:
