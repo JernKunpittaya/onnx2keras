@@ -1,6 +1,12 @@
+from pathlib import Path
 import os
+import sys
 import logging
 import argparse
+
+# add .. to the PYTHONPATH to make the import `onnx2circom` work
+file_path = Path(__file__).resolve()
+sys.path.append(str(file_path.parent.parent))
 
 from onnx2keras.utils import load_onnx_modelproto, keras_builder, tflite_builder, get_elements_error
 __version__ = __VERSION__ = "1.2.0"
@@ -90,8 +96,4 @@ def run():
     )
 
 if __name__ == "__main__":
-    # Since we import with `onnx2keras.utils`
-    # `..` must be in PYTHONPATH
-    import sys
-    sys.path.append("..")
     run()
