@@ -35,16 +35,42 @@ def match_tensor(x1:tf.Tensor or np.ndarray, x2:tf.Tensor or np.ndarray):
     x2 = tf.transpose(x2, new_shape)
     return (x2, x1) if f2 else (x1, x2)
 
+# @OPERATOR.register_operator("Add")
+# class TFAdd():
+#     def __init__(self, tensor_grap, node_weights, node_inputs, *args, **kwargs):
+#         super().__init__()
+#         self.first_operand = tensor_grap[node_inputs[0]] if node_inputs[0] in tensor_grap else node_weights[node_inputs[0]]
+#         self.second_operand = tensor_grap[node_inputs[1]] if node_inputs[1] in tensor_grap else node_weights[node_inputs[1]]
+#         self.first_operand, self.second_operand = match_tensor(self.first_operand, self.second_operand)
+
+#     def __call__(self, *args, **kwargs):
+#         print('Working: add layer added (not really layer...)')
+#         return self.first_operand + self.second_operand
+
 @OPERATOR.register_operator("Add")
-class TFAdd():
+class TFAdd(keras.layers.Layer):
     def __init__(self, tensor_grap, node_weights, node_inputs, *args, **kwargs):
         super().__init__()
+        self.tensor_grap = tensor_grap
+        self.node_weights = node_weights
+        self.node_inputs = node_inputs
+
         self.first_operand = tensor_grap[node_inputs[0]] if node_inputs[0] in tensor_grap else node_weights[node_inputs[0]]
         self.second_operand = tensor_grap[node_inputs[1]] if node_inputs[1] in tensor_grap else node_weights[node_inputs[1]]
         self.first_operand, self.second_operand = match_tensor(self.first_operand, self.second_operand)
 
-    def __call__(self, *args, **kwargs):
+    def call(self, *args, **kwargs):
+        print('Not sure: add layer added (not really layer...)')
         return self.first_operand + self.second_operand
+    
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            "tensor_grap":self.tensor_grap,
+            'node_weights':self.node_weights,
+            'node_inputs':self.node_inputs
+        })
+        return config
 
 @OPERATOR.register_operator("Sub")
 class TFSub():
@@ -155,6 +181,14 @@ class TFLog(keras.layers.Layer):
 
     def call(self, inputs, *args, **kwargs):
         return keras.ops.log(inputs)
+
+# @OPERATOR.register_operator("Log")
+# class TFLog():
+#     def __init__(self, *args, **kwargs):
+#         super().__init__()
+
+#     def __call__(self, inputs, *args, **kwargs):
+#         return keras.ops.log(inputs)
 
 @OPERATOR.register_operator("ReduceSum")
 class TFReduceSum(keras.layers.Layer):
