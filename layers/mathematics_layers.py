@@ -188,18 +188,37 @@ class TFReduceSum(keras.layers.Layer):
         return config
 
 @OPERATOR.register_operator("ReduceMean")
-class TFReduceMean():
+class TFReduceMean(keras.layers.Layer):
     def __init__(self, tensor_grap, node_weights, node_inputs, node_attribute, *args, **kwargs):
         super().__init__()
+        self.tensor_grap = tensor_grap
+        self.node_weights = node_weights
+        self.node_inputs = node_inputs
+        self.node_attribute = node_attribute
         self.keep_dims = node_attribute.get("keepdims", 1) == 1
-        input_shape_len = len(tensor_grap[node_inputs[0]].shape)
+        # FIXME: Workaround to share the same code with keras
+        keras_tensor = tensor_grap[node_inputs[0]]
+        try:
+            input_shape_len = len(keras_tensor.shape)
+        except AttributeError:
+            input_shape_len = len(keras_tensor['config']['shape'])
         self.axes = [dimension_utils.channel_to_last_dimension(i) if i >=0 else dimension_utils.channel_to_last_dimension(input_shape_len + i) for i in node_attribute.get("axes", [-1])]
 
-    def __call__(self, inputs, *args, **kwargs):
-        return tf.math.reduce_mean(inputs, axis=self.axes, keepdims=self.keep_dims)
+    def call(self, inputs, *args, **kwargs):
+        return keras.ops.mean(inputs, axis = self.axes, keepdims=self.keep_dims)
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            "tensor_grap":self.tensor_grap,
+            'node_weights':self.node_weights,
+            'node_inputs':self.node_inputs,
+            'node_attribute':self.node_attribute
+        })
+        return config
 
 @OPERATOR.register_operator("ReduceMax")
-class TFReduceMax():
+class TFReduceMax(keras.layers.Layer):
     def __init__(self, tensor_grap, node_weights, node_inputs, node_attribute, *args, **kwargs):
         super().__init__()
         self.keep_dims = node_attribute.get("keepdims", 1) == 1
@@ -210,7 +229,7 @@ class TFReduceMax():
         return tf.math.reduce_max(inputs, axis=self.axes, keepdims=self.keep_dims)
 
 @OPERATOR.register_operator("ReduceMin")
-class TFReduceMin():
+class TFReduceMin(keras.layers.Layer):
     def __init__(self, tensor_grap, node_weights, node_inputs, node_attribute, *args, **kwargs):
         super().__init__()
         self.keep_dims = node_attribute.get("keepdims", 1) == 1
@@ -221,7 +240,7 @@ class TFReduceMin():
         return tf.math.reduce_min(inputs, axis=self.axes, keepdims=self.keep_dims)
 
 @OPERATOR.register_operator("ArgMax")
-class TFArgMax():
+class TFArgMax(keras.layers.Layer):
     def __init__(self, tensor_grap, node_weights, node_inputs, node_attribute, *args, **kwargs):
         super().__init__()
         self.axis = dimension_utils.channel_to_last_dimension(node_attribute.get('axis', 0))
@@ -234,7 +253,7 @@ class TFArgMax():
         return _inputs
 
 @OPERATOR.register_operator("ArgMin")
-class TFArgMin():
+class TFArgMin(keras.layers.Layer):
     def __init__(self, tensor_grap, node_weights, node_inputs, node_attribute, *args, **kwargs):
         super().__init__()
         self.axis = dimension_utils.channel_to_last_dimension(node_attribute.get('axis', 0))
@@ -247,7 +266,7 @@ class TFArgMin():
         return _inputs
 
 @OPERATOR.register_operator("Erf")
-class TFErf():
+class TFErf(keras.layers.Layer):
     def __init__(self, *args, **kwargs) -> None:
         pass
 
