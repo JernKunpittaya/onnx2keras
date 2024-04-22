@@ -2,8 +2,8 @@ import logging
 import numpy as np
 import tensorflow as tf
 
-from utils.op_registry import OPERATOR
-from layers import dimension_utils
+from ..utils.op_registry import OPERATOR
+from . import dimension_utils
 import keras
 
 LOG = logging.getLogger("calculations_layers :")
@@ -15,14 +15,14 @@ def np2tf(x):
     return x, True
 
 def match_tensor(x1:tf.Tensor or np.ndarray, x2:tf.Tensor or np.ndarray):
-    
+
     x1, f1 = np2tf(x1)
     x2, f2 = np2tf(x2)
 
     # no need to transpose if all var are tensor, we assume tensor are computed by gragh.
     if f1 and f2:
         return x1, x2
-    
+
     # ensure tensor is set to x1, weights set to x2
     if f2:
         x1, x2 = x2, x1
@@ -416,7 +416,7 @@ class TFReduceSum(keras.layers.Layer):
        
     def call(self, inputs, *args, **kwargs):
         return keras.ops.sum(inputs, axis = self.axes, keepdims=self.keep_dims)
-    
+
     def get_config(self):
         config = super().get_config()
         config.update({

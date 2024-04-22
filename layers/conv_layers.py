@@ -5,12 +5,12 @@
     https://github.com/MPolaris/onnx2tflite/issues/5
 
     Thanks for lkdci with your native method of group conv
-    https://github.com/MPolaris/onnx2tflite/issues/19 
+    https://github.com/MPolaris/onnx2tflite/issues/19
 '''
 import logging
 import tensorflow as tf
 from tensorflow import keras
-from utils.op_registry import OPERATOR
+from ..utils.op_registry import OPERATOR
 
 LOG = logging.getLogger("convolution_layers :")
 
@@ -82,13 +82,13 @@ class Convlution():
                                 if compatibility error occurs and please make USE_NATIVE_GROUP_CONV=False!")
             else:
                 self.conv = TFGroupConv(in_channel, out_channel, kernel_shape, strides, dilations, pads, weights, bias, group=group)
-    
+
     def __call__(self, inputs):
         return self.conv(inputs)
 
 class TFConv():
     # Standard convolution
-    def __init__(self, in_channel_num, out_channel_num, kernel_size=1, 
+    def __init__(self, in_channel_num, out_channel_num, kernel_size=1,
                         strides=1, dilations=1, pads=None, weights=None, bias=None, group=1):
         super().__init__()
 
@@ -101,7 +101,7 @@ class TFConv():
         else:
             raise NotImplementedError(f"Conv{len(weights.shape)-2}d is not implemented")
 
-    def conv1d_init(self, in_channel_num, out_channel_num, kernel_size=1, 
+    def conv1d_init(self, in_channel_num, out_channel_num, kernel_size=1,
                     strides=1, dilations=1, pads=None, weights=None, bias=None, group=1):
         self.pad =None
         if pads is not None and max(pads) == 1 and max(strides) == 1:
@@ -117,7 +117,7 @@ class TFConv():
             if pads is not None and max(pads) != 0:
                 self.pad = keras.layers.ZeroPadding1D(padding=pads)
 
-    def conv2d_init(self, in_channel_num, out_channel_num, kernel_size=1, 
+    def conv2d_init(self, in_channel_num, out_channel_num, kernel_size=1,
                         strides=1, dilations=1, pads=None, weights=None, bias=None, group=1):
         if isinstance(dilations, int):
             dilations = (dilations, dilations)
@@ -145,7 +145,7 @@ class TFConv():
                     padding = ((pads[0], pads[2]), (pads[1], pads[3]))
                 self.pad = keras.layers.ZeroPadding2D(padding=padding)
 
-    def conv3d_init(self, in_channel_num, out_channel_num, kernel_size=1, 
+    def conv3d_init(self, in_channel_num, out_channel_num, kernel_size=1,
                     strides=1, dilations=1, pads=None, weights=None, bias=None, group=1):
         raise NotImplementedError("Conv3d is not implemented")
 
@@ -158,7 +158,7 @@ class TFGroupConv():
     '''
         Group Convolution, using split method to implement, not native.
     '''
-    def __init__(self, in_channel_num, out_channel_num, kernel_size=1, 
+    def __init__(self, in_channel_num, out_channel_num, kernel_size=1,
                         strides=1, dilations=1, pads=None, weights=None, bias=None, group=1):
         super().__init__()
 
@@ -169,7 +169,7 @@ class TFGroupConv():
         else:
             raise NotImplementedError(f"GroupConv{len(weights.shape)-2}d is not implemented")
 
-    def groupconv1d_init(self, in_channel_num, out_channel_num, kernel_size=1, 
+    def groupconv1d_init(self, in_channel_num, out_channel_num, kernel_size=1,
                         strides=1, dilations=1, pads=None, weights=None, bias=None, group=1):
         self.cin = in_channel_num
         self.groups = group
@@ -190,7 +190,7 @@ class TFGroupConv():
                 if pads is not None and (max(pads) != 0 and not (max(pads) == 1 and max(strides) == 1)):
                     self.pad = keras.layers.ZeroPadding1D(padding=pads)
 
-    def groupconv2d_init(self, in_channel_num, out_channel_num, kernel_size=1, 
+    def groupconv2d_init(self, in_channel_num, out_channel_num, kernel_size=1,
                         strides=1, dilations=1, pads=None, weights=None, bias=None, group=1):
         if isinstance(dilations, int):
             dilations = (dilations, dilations)
@@ -301,7 +301,7 @@ class TFDepthwiseConv():
                 elif len(pads) == 4 and (pads[0] > 0 or pads[1] > 0 or pads[2] > 0 or pads[3] > 0):
                     padding = ((pads[0], pads[2]), (pads[1], pads[3]))
                 self.pad = keras.layers.ZeroPadding2D(padding=padding)
-                
+
     def __call__(self, inputs):
         if self.pad:
             inputs = self.pad(inputs)

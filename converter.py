@@ -1,13 +1,20 @@
+from pathlib import Path
 import os
+import sys
 import logging
 import argparse
-from utils import load_onnx_modelproto, keras_builder, tflite_builder, get_elements_error
+
+# add .. to the PYTHONPATH to make the import `onnx2circom` work
+file_path = Path(__file__).resolve()
+sys.path.append(str(file_path.parent.parent))
+
+from onnx2keras.utils import load_onnx_modelproto, keras_builder, tflite_builder, get_elements_error
 __version__ = __VERSION__ = "1.2.0"
 
 logging.basicConfig(level=logging.INFO)
 LOG = logging.getLogger("converter running:")
 
-def onnx_converter(onnx_model_path:str,  output_path:str=None, 
+def onnx_converter(onnx_model_path:str,  output_path:str=None,
                     input_node_names:list=None, output_node_names:list=None,
                     need_simplify:bool=True, target_formats:list = ['keras', 'tflite'],
                     native_groupconv:bool=False,
@@ -15,7 +22,7 @@ def onnx_converter(onnx_model_path:str,  output_path:str=None,
                     int8_mean:list or float = [123.675, 116.28, 103.53], int8_std:list or float = [58.395, 57.12, 57.375])->float:
     if not isinstance(target_formats, list) and  'keras' not in target_formats and 'tflite' not in target_formats:
         raise KeyError("'keras' or 'tflite' should in list")
-    
+
     model_proto = load_onnx_modelproto(onnx_model_path, input_node_names, output_node_names, need_simplify)
 
     keras_model = keras_builder(model_proto, native_groupconv)
@@ -35,7 +42,7 @@ def onnx_converter(onnx_model_path:str,  output_path:str=None,
     # ignore quantization model
     if int8_model:
         return convert_result
-    
+
     error_dict = {}
     try:
         error_dict = get_elements_error(model_proto, keras_model_path)
@@ -49,7 +56,7 @@ def onnx_converter(onnx_model_path:str,  output_path:str=None,
                 LOG.info("h5 model elements' max error is {:^.4E}, pass, h5 saved in {}".format(keras_error, keras_model_path))
     except:
         LOG.warning("convert is successed, but model running is failed, please check carefully!")
-    
+
     convert_result["keras_error"] = error_dict.get("keras", None)
     convert_result["tflite_error"] = error_dict.get("tflite", None)
     return convert_result
