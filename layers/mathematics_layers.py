@@ -2,8 +2,8 @@ import logging
 import numpy as np
 import tensorflow as tf
 
-from utils.op_registry import OPERATOR
-from layers import dimension_utils
+from ..utils.op_registry import OPERATOR
+from . import dimension_utils
 import keras
 
 LOG = logging.getLogger("calculations_layers :")
@@ -15,14 +15,14 @@ def np2tf(x):
     return x, True
 
 def match_tensor(x1:tf.Tensor or np.ndarray, x2:tf.Tensor or np.ndarray):
-    
+
     x1, f1 = np2tf(x1)
     x2, f2 = np2tf(x2)
 
     # no need to transpose if all var are tensor, we assume tensor are computed by gragh.
     if f1 and f2:
         return x1, x2
-    
+
     # ensure tensor is set to x1, weights set to x2
     if f2:
         x1, x2 = x2, x1
@@ -30,7 +30,7 @@ def match_tensor(x1:tf.Tensor or np.ndarray, x2:tf.Tensor or np.ndarray):
     if x1.shape.ndims != x2.shape.ndims:
         while x2.shape.ndims < x1.shape.ndims:
             x2 = tf.expand_dims(x2, axis=0)
-    
+
     new_shape = dimension_utils.shape_NCD_to_NDC_format([i for i in range(len(x2.shape))])
     x2 = tf.transpose(x2, new_shape)
     return (x2, x1) if f2 else (x1, x2)
@@ -114,7 +114,7 @@ class TFPow(keras.layers.Layer):
 
     def call(self, inputs, *args, **kwargs):
         return keras.ops.power(inputs, self.power_index)
-    
+
     def get_config(self):
         config = super().get_config()
         config.update({
@@ -156,6 +156,7 @@ class TFLog(keras.layers.Layer):
     def call(self, inputs, *args, **kwargs):
         return keras.ops.log(inputs)
 
+
 @OPERATOR.register_operator("ReduceSum")
 class TFReduceSum(keras.layers.Layer):
     def __init__(self, tensor_grap, node_weights, node_inputs, node_attribute, *args, **kwargs):
@@ -165,12 +166,17 @@ class TFReduceSum(keras.layers.Layer):
         self.node_inputs = node_inputs
         self.node_attribute = node_attribute
         self.keep_dims = node_attribute.get("keepdims", 1) == 1
-        input_shape_len = len(tensor_grap[node_inputs[0]].shape)
+        # FIXME: Workaround to share the same code with keras
+        keras_tensor = tensor_grap[node_inputs[0]]
+        try:
+            input_shape_len = len(keras_tensor.shape)
+        except AttributeError:
+            input_shape_len = len(keras_tensor['config']['shape'])
         self.axes = [dimension_utils.channel_to_last_dimension(i) if i >=0 else dimension_utils.channel_to_last_dimension(input_shape_len + i) for i in node_attribute.get("axes", [-1])]
 
     def call(self, inputs, *args, **kwargs):
         return keras.ops.sum(inputs, axis = self.axes, keepdims=self.keep_dims)
-    
+
     def get_config(self):
         config = super().get_config()
         config.update({
@@ -182,18 +188,37 @@ class TFReduceSum(keras.layers.Layer):
         return config
 
 @OPERATOR.register_operator("ReduceMean")
-class TFReduceMean():
+class TFReduceMean(keras.layers.Layer):
     def __init__(self, tensor_grap, node_weights, node_inputs, node_attribute, *args, **kwargs):
         super().__init__()
+        self.tensor_grap = tensor_grap
+        self.node_weights = node_weights
+        self.node_inputs = node_inputs
+        self.node_attribute = node_attribute
         self.keep_dims = node_attribute.get("keepdims", 1) == 1
-        input_shape_len = len(tensor_grap[node_inputs[0]].shape)
+        # FIXME: Workaround to share the same code with keras
+        keras_tensor = tensor_grap[node_inputs[0]]
+        try:
+            input_shape_len = len(keras_tensor.shape)
+        except AttributeError:
+            input_shape_len = len(keras_tensor['config']['shape'])
         self.axes = [dimension_utils.channel_to_last_dimension(i) if i >=0 else dimension_utils.channel_to_last_dimension(input_shape_len + i) for i in node_attribute.get("axes", [-1])]
 
-    def __call__(self, inputs, *args, **kwargs):
-        return tf.math.reduce_mean(inputs, axis=self.axes, keepdims=self.keep_dims)
+    def call(self, inputs, *args, **kwargs):
+        return keras.ops.mean(inputs, axis = self.axes, keepdims=self.keep_dims)
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            "tensor_grap":self.tensor_grap,
+            'node_weights':self.node_weights,
+            'node_inputs':self.node_inputs,
+            'node_attribute':self.node_attribute
+        })
+        return config
 
 @OPERATOR.register_operator("ReduceMax")
-class TFReduceMax():
+class TFReduceMax(keras.layers.Layer):
     def __init__(self, tensor_grap, node_weights, node_inputs, node_attribute, *args, **kwargs):
         super().__init__()
         self.keep_dims = node_attribute.get("keepdims", 1) == 1
@@ -204,7 +229,7 @@ class TFReduceMax():
         return tf.math.reduce_max(inputs, axis=self.axes, keepdims=self.keep_dims)
 
 @OPERATOR.register_operator("ReduceMin")
-class TFReduceMin():
+class TFReduceMin(keras.layers.Layer):
     def __init__(self, tensor_grap, node_weights, node_inputs, node_attribute, *args, **kwargs):
         super().__init__()
         self.keep_dims = node_attribute.get("keepdims", 1) == 1
@@ -215,7 +240,7 @@ class TFReduceMin():
         return tf.math.reduce_min(inputs, axis=self.axes, keepdims=self.keep_dims)
 
 @OPERATOR.register_operator("ArgMax")
-class TFArgMax():
+class TFArgMax(keras.layers.Layer):
     def __init__(self, tensor_grap, node_weights, node_inputs, node_attribute, *args, **kwargs):
         super().__init__()
         self.axis = dimension_utils.channel_to_last_dimension(node_attribute.get('axis', 0))
@@ -228,7 +253,7 @@ class TFArgMax():
         return _inputs
 
 @OPERATOR.register_operator("ArgMin")
-class TFArgMin():
+class TFArgMin(keras.layers.Layer):
     def __init__(self, tensor_grap, node_weights, node_inputs, node_attribute, *args, **kwargs):
         super().__init__()
         self.axis = dimension_utils.channel_to_last_dimension(node_attribute.get('axis', 0))
@@ -241,10 +266,10 @@ class TFArgMin():
         return _inputs
 
 @OPERATOR.register_operator("Erf")
-class TFErf():
+class TFErf(keras.layers.Layer):
     def __init__(self, *args, **kwargs) -> None:
         pass
-    
+
     def __call__(self, inputs):
         inputs = tf.math.erf(inputs)
         return inputs

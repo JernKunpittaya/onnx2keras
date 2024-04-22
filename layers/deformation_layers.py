@@ -1,8 +1,8 @@
 import logging
 import tensorflow as tf
 
-from utils.op_registry import OPERATOR
-from layers import dimension_utils
+from ..utils.op_registry import OPERATOR
+from . import dimension_utils
 
 LOG = logging.getLogger("deformation_layers :")
 
@@ -97,7 +97,7 @@ class TFReshape():
         inputs = tf.reshape(inputs, shape=self.out_shape)
         inputs = tf.transpose(inputs, perm=self.trans_out)
         return inputs
-        
+
 @OPERATOR.register_operator("Flatten")
 class TFFlatten():
     def __init__(self, tensor_grap, node_weights, node_inputs, node_attribute, *args, **kwargs)->None:
