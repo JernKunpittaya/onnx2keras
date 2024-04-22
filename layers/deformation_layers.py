@@ -16,36 +16,35 @@ class TFTranspose(keras.layers.Layer):
         self.node_inputs = node_inputs
         self.node_attribute = node_attribute
 
-        self.trans_in, self.trans_out = None, None
-        if kwargs.get("perm_list"):
-            self.perm_list = kwargs.get("perm_list")
-        elif len(node_attribute['perm']) > 4:
-            self.perm_list = []
-            for axis in node_attribute['perm']:
-                new_axis = dimension_utils.channel_to_last_dimension(axis)
-                if new_axis == -1:
-                    new_axis = max(node_attribute['perm'])
-                self.perm_list.append(new_axis)
-            self.perm_list = dimension_utils.shape_NCD_to_NDC_format(self.perm_list)
-        else:
-            self.perm_list = [i for i in node_attribute['perm']]
-            LOG.info("Transpose will process tensor after change back to NCHW format.")
-            shape_len = len(tensor_grap[node_inputs[0]].shape)
-            self.trans_in = [0, shape_len-1] + [n for n in range(1, shape_len-1)]
-            self.trans_out = [0] + [n for n in range(2, len(self.perm_list))] + [1]
+        self.perm_list = node_attribute['perm']
+
+        # self.trans_in, self.trans_out = None, None
+        # if kwargs.get("perm_list"):
+        #     self.perm_list = kwargs.get("perm_list")
+        # elif len(node_attribute['perm']) > 4:
+        #     self.perm_list = []
+        #     for axis in node_attribute['perm']:
+        #         new_axis = dimension_utils.channel_to_last_dimension(axis)
+        #         if new_axis == -1:
+        #             new_axis = max(node_attribute['perm'])
+        #         self.perm_list.append(new_axis)
+        #     self.perm_list = dimension_utils.shape_NCD_to_NDC_format(self.perm_list)
+        # else:
+        #     self.perm_list = [i for i in node_attribute['perm']]
+        #     LOG.info("Transpose will process tensor after change back to NCHW format.")
+        #     shape_len = len(tensor_grap[node_inputs[0]].shape)
+        #     self.trans_in = [0, shape_len-1] + [n for n in range(1, shape_len-1)]
+        #     self.trans_out = [0] + [n for n in range(2, len(self.perm_list))] + [1]
 
     def call(self, inputs):
-        if self.trans_in and self.trans_out:
-            # inputs = tf.transpose(inputs, perm=self.trans_in)
-            # inputs = tf.transpose(inputs, perm=self.perm_list)
-            # inputs = tf.transpose(inputs, perm=self.trans_out)
-            inputs = keras.ops.transpose(inputs, self.trans_in)
-            inputs = keras.ops.transpose(inputs, self.perm_list)
-            inputs = keras.ops.transpose(inputs, self.trans_out)
-            return inputs
-        else:
-            return keras.ops.transpose(inputs, self.perm_list)
-            return tf.transpose(inputs, perm=self.perm_list)
+        # if self.trans_in and self.trans_out:
+        #     inputs = keras.ops.transpose(inputs, self.trans_in)
+        #     inputs = keras.ops.transpose(inputs, self.perm_list)
+        #     inputs = keras.ops.transpose(inputs, self.trans_out)
+        #     return inputs
+        # else:
+        return keras.ops.transpose(inputs, self.perm_list)
+
     def get_config(self):
         config = super().get_config()
         config.update({
@@ -53,9 +52,9 @@ class TFTranspose(keras.layers.Layer):
             'node_weights':self.node_weights,
             'node_inputs':self.node_inputs,
             'node_attribute':self.node_attribute, 
-            'trans_in':self.trans_in,
+            # 'trans_in':self.trans_in,
             'perm_list':self.perm_list,
-            'trans_out':self.trans_out
+            # 'trans_out':self.trans_out
         })
         return config
 @OPERATOR.register_operator("Slice")
@@ -82,16 +81,7 @@ class TFSlice():
         indices = tf.keras.backend.arange(self.starts, self.ends, step=self.steps)
         return tf.gather(inputs, indices, axis=self.axis)
 
-# @OPERATOR.register_operator("Gather")
-# class TFGather():
-#     def __init__(self, tensor_grap, node_weights, node_inputs, node_attribute, *args, **kwargs) -> None:
-#         super().__init__()
-#         self.axis = dimension_utils.channel_to_last_dimension(node_attribute.get('axis', 0))
-#         self.indices = tensor_grap[node_inputs[1]] if node_inputs[1] in tensor_grap else node_weights[node_inputs[1]]
 
-#     def __call__(self, inputs):
-#         return tf.gather(inputs, self.indices, axis=self.axis)
-    
 @OPERATOR.register_operator("Gather")
 class TFGather(keras.layers.Layer):
     def __init__(self, tensor_grap, node_weights, node_inputs, node_attribute, *args, **kwargs) -> None:
@@ -101,14 +91,11 @@ class TFGather(keras.layers.Layer):
         self.node_inputs = node_inputs
         self.node_attribute = node_attribute
 
-        self.axis = dimension_utils.channel_to_last_dimension(node_attribute.get('axis', 0))
+        self.axis = node_attribute.get('axis', 0)
         self.indices = tensor_grap[node_inputs[1]] if node_inputs[1] in tensor_grap else node_weights[node_inputs[1]]
 
-    def call(self, *args):
-        print("Gather tensor: ", args[0])
-        print("Gather: ", args[0][int(args[1])])
-        return args[0][int(args[1])]
-        return tf.gather(inputs, self.indices, axis=self.axis)
+    def call(self,inputs,  *args):
+        return keras.ops.take(inputs, self.indices, axis=self.axis)
     
     def get_config(self):
         config = super().get_config()
@@ -117,7 +104,8 @@ class TFGather(keras.layers.Layer):
             'node_weights':self.node_weights,
             'node_inputs':self.node_inputs,
             'node_attribute':self.node_attribute, 
-            'indices':self.indices
+            'indices':self.indices,
+            'axis': self.axis
         })
         return config
 
@@ -131,11 +119,14 @@ class TFConcat(keras.layers.Layer):
         self.node_inputs = node_inputs
         self.node_attribute = node_attribute
 
-        self._axis = dimension_utils.channel_to_last_dimension(node_attribute['axis'])
-        self._gather = [tensor_grap[x] if x in tensor_grap else dimension_utils.tensor_NCD_to_NDC_format(node_weights[x]) for x in node_inputs]
-
+        # self._axis = dimension_utils.channel_to_last_dimension(node_attribute['axis'])
+        self._axis = node_attribute['axis']
+        # self._gather = [tensor_grap[x] if x in tensor_grap else dimension_utils.tensor_NCD_to_NDC_format(node_weights[x]) for x in node_inputs]
+        self._gather = [tensor_grap[x] if x in tensor_grap else node_weights[x] for x in node_inputs]
+        print('gatherrrrs: ', self._gather)
     def call(self, *args, **kwargs):
-        return keras.ops.concatenate(self._gather, axis = self._axis)
+        print('Call gatherrrrs: ', self._gather)
+        return keras.ops.concatenate((args), axis = self._axis)
         return tf.concat(self._gather, axis=self._axis)
     
     def get_config(self):
@@ -199,19 +190,36 @@ class TFFlatten():
         return self.flat(inputs)
 
 @OPERATOR.register_operator("Split")
-class TFSplit():
+class TFSplit(keras.layers.Layer):
     def __init__(self, tensor_grap, node_weights, node_inputs, node_attribute, *args, **kwargs)->None:
         super().__init__()
+        self.tensor_grap = tensor_grap
+        self.node_weights = node_weights
+        self.node_inputs = node_inputs
+        self.node_attribute = node_attribute
+
         index = kwargs.get('index', 0)
         start = 0
         for i in range(index):
             start += int(node_attribute['split'][i])
         end = start + node_attribute['split'][index]
-        self.indices = tf.keras.backend.arange(start, end, 1)
-        self.axis = dimension_utils.channel_to_last_dimension(node_attribute.get("axis", 0))
+        self.indices = keras.ops.arange(start, end, 1)
+        self.axis = node_attribute.get("axis", 0)
 
-    def __call__(self, inputs):
-        return tf.gather(inputs, indices=self.indices, axis=self.axis)
+    def call(self, inputs):
+        return keras.ops.take(inputs, indices=self.indices, axis=self.axis)
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            "tensor_grap":self.tensor_grap,
+            'node_weights':self.node_weights,
+            'node_inputs':self.node_inputs,
+            'node_attribute':self.node_attribute,
+            "indices": self.indices,
+             "axis": self.axis
+        })
+        return config
 
 @OPERATOR.register_operator("Expand")
 class TFExpand():
@@ -228,22 +236,55 @@ class TFExpand():
         return inputs
 
 @OPERATOR.register_operator("Unsqueeze")
-class TFUnsqueeze():
+class TFUnsqueeze(keras.layers.Layer):
     def __init__(self, tensor_grap, node_weights, node_inputs, node_attribute, *args, **kwargs)->None:
         super().__init__()
-        self.axis = dimension_utils.channel_to_last_dimension(node_attribute['axes'][0])
+        self.tensor_grap = tensor_grap
+        self.node_weights = node_weights
+        self.node_inputs = node_inputs
+        self.node_attribute = node_attribute
 
-    def __call__(self, inputs):
-        return tf.expand_dims(inputs, self.axis)
+        self.axis = node_attribute['axes'][0]
+        # self.axis = dimension_utils.channel_to_last_dimension(node_attribute['axes'][0])
 
+    def call(self, inputs):
+        return keras.ops.expand_dims(inputs, self.axis)
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            "tensor_grap":self.tensor_grap,
+            'node_weights':self.node_weights,
+            'node_inputs':self.node_inputs,
+            'node_attribute':self.node_attribute,
+            "axis": self.axis
+        })
+        return config
+    
 @OPERATOR.register_operator("Squeeze")
-class TFSqueeze():
+class TFSqueeze(keras.layers.Layer):
     def __init__(self, tensor_grap, node_weights, node_inputs, node_attribute, *args, **kwargs)->None:
         super().__init__()
-        self.axis = dimension_utils.channel_to_last_dimension(node_attribute['axes'][0])
+        self.tensor_grap = tensor_grap
+        self.node_weights = node_weights
+        self.node_inputs = node_inputs
+        self.node_attribute = node_attribute
+        # self.axis = dimension_utils.channel_to_last_dimension(node_attribute['axes'][0])
+        self.axis = node_attribute['axes'][0]
 
-    def __call__(self, inputs):
-        return tf.squeeze(inputs, self.axis)
+    def call(self, inputs):
+        return keras.ops.squeeze(inputs, self.axis)
+    
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            "tensor_grap":self.tensor_grap,
+            'node_weights':self.node_weights,
+            'node_inputs':self.node_inputs,
+            'node_attribute':self.node_attribute,
+            "axis": self.axis
+        })
+        return config
 
 @OPERATOR.register_operator("DepthToSpace")
 class TFDepthToSpace():

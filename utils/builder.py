@@ -50,7 +50,11 @@ def keras_builder(onnx_model, native_groupconv:bool=False):
     onnx_weights = dict()
     for initializer in model_graph.initializer:
         onnx_weights[initializer.name] = numpy_helper.to_array(initializer)
-    # print('onnx weights: ', onnx_weights)
+    print('onnx weights: ', onnx_weights)
+    # NOT needed, since we get rid of simplify from other libraries
+    # print('INITIALIZER: ', model_graph.initializer)
+    # for init in model_graph.initializer:
+    #     tf_tensor[init.name] = keras.backend.constant(init.raw_data, name = init.name, dtype = init.data_type)
     '''
         build input nodes
     '''
@@ -63,15 +67,14 @@ def keras_builder(onnx_model, native_groupconv:bool=False):
         if input_shape == []:
             continue
         batch_size = 1 if input_shape[0] <= 0 else input_shape[0]
+        # why original code flip this dimension
         # input_shape = input_shape[2:] + input_shape[1:2]
         input_shape = input_shape[1:]
         inputs_name.append(inp.name)
         # print("INPUT NAMEME: ", inp.name)
         tf_tensor[inp.name] = keras.Input(shape=input_shape, batch_size=batch_size)
-    # NOT needed, since we get rid of simplify from other libraries
-    # print('INITIALIZER: ', model_graph.initializer)
-    # for init in model_graph.initializer:
-    #     tf_tensor[init.name] = keras.backend.constant(init.raw_data, name = init.name, dtype = init.data_type)
+        # print('builddd shape: ', tf_tensor[inp.name].shape)
+
     '''
         build model inline node by iterate onnx nodes.
     '''
@@ -107,7 +110,13 @@ def keras_builder(onnx_model, native_groupconv:bool=False):
             # output = tf_operator(tf_tensor, onnx_weights, node_inputs, op_attr, index=index)(_inputs)
             _inputs = []
             for inner in node_inputs:
-                _inputs.append(tf_tensor[inner])
+                if inner in tf_tensor:
+                    _inputs.append(tf_tensor[inner])
+                elif inner in onnx_weights:
+                    _inputs.append(onnx_weights[inner])
+                else:
+                    raise KeyError('NO info about this input')
+                    
             # print("BEFORE: INPUTT: ", _inputs)
             output = tf_operator(tf_tensor, onnx_weights, node_inputs, op_attr, index=index)(*_inputs)
             print("outputt: ", output)
