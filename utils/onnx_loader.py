@@ -55,11 +55,15 @@ def load_onnx_modelproto(onnx_model_path:str, input_node_names:list=None, output
         raise FileExistsError(f"{onnx_model_path} is not exists.")
     model_proto = get_proto(onnx_model_path, input_node_names, output_node_names)
     dynamic_input = False
-    for inp in model_proto.graph.input:
-        for x in inp.type.tensor_type.shape.dim:
-            if x.dim_value <= 0:
-                dynamic_input = True
-                break
+    # print("FIRST onnx loader proto:: ", model_proto.graph)
+    # for inp in model_proto.graph.input:
+    #     for x in inp.type.tensor_type.shape.dim:
+    #         if x.dim_value <= 0:
+    #             dynamic_input = True
+    #             break
+    
+# ==== simplify lib --> make Constant Layer becomes Initializer: weird!
+
     if need_simplify:
         success = False
         try:

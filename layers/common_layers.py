@@ -171,6 +171,7 @@ class TFUpsample():
     def __call__(self, inputs):
         return tf.image.resize(inputs,  self.scale, method=self.method)
 
+    
 @OPERATOR.register_operator("Constant")
 class TFConstant():
     def __init__(self, tensor_grap, node_weights, node_inputs, node_attribute, *args, **kwargs):
@@ -260,9 +261,14 @@ class TFDropout():
         return inputs
 
 @OPERATOR.register_operator("Cast")
-class TFCast():
+class TFCast(keras.layers.Layer):
     def __init__(self, tensor_grap, node_weights, node_inputs, node_attribute, *args, **kwargs):
         super().__init__()
+        self.tensor_grap = tensor_grap
+        self.node_weights = node_weights
+        self.node_inputs = node_inputs
+        self.node_attribute = node_attribute
+
         self.cast_to = int(node_attribute.get("to", 1))
         assert self.cast_to > 0 and self.cast_to < 12, f"Unknown cast type [{self.cast_to}]"
         self.np_cast_map = {
@@ -288,17 +294,30 @@ class TFCast():
                 11: tf.double,
             }
 
-    def __call__(self, inputs):
+    def call(self, inputs):
         if isinstance(inputs, list):
             for i in range(len(inputs)):
                 if isinstance(inputs[i], np.ndarray) or isinstance(inputs[i], np.generic):
                     inputs[i] = self.np_cast_map[self.cast_to](inputs[i])
                 else:
-                    inputs[i] = tf.cast(input[i], dtype=self.tf_cast_map[self.cast_to])
+                    inputs[i] = keras.ops.cast(input[i], dtype=self.tf_cast_map[self.cast_to])
+                    # inputs[i] = tf.cast(input[i], dtype=self.tf_cast_map[self.cast_to])
         else:
             if isinstance(inputs, np.ndarray) or isinstance(inputs, np.generic):
                 inputs = self.np_cast_map[self.cast_to](inputs)
             else:
-                inputs = tf.cast(inputs, dtype=self.tf_cast_map[self.cast_to])
+                inputs = keras.ops.cast(inputs, dtype=self.tf_cast_map[self.cast_to])
+                # inputs = tf.cast(inputs, dtype=self.tf_cast_map[self.cast_to])
 
         return inputs
+    
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            "tensor_grap":self.tensor_grap,
+            'node_weights':self.node_weights,
+            'node_inputs':self.node_inputs,
+            'node_attribute':self.node_attribute, 
+            "cast_to": self.cast_to
+        })
+        return config
