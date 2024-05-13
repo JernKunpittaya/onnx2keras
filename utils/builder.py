@@ -6,6 +6,7 @@ from tensorflow import keras
 from onnx import numpy_helper
 from .op_registry import OPERATOR
 from .dataloader import RandomLoader, ImageLoader
+import numpy as np
 
 from ..layers import conv_layers
 
@@ -50,7 +51,7 @@ def keras_builder(onnx_model, native_groupconv:bool=False):
     onnx_weights = dict()
     for initializer in model_graph.initializer:
         onnx_weights[initializer.name] = numpy_helper.to_array(initializer)
-    print('onnx weights: ', onnx_weights)
+    print('onnx weights from initializer: ', onnx_weights)
     # NOT needed, since we get rid of simplify from other libraries
     # print('INITIALIZER: ', model_graph.initializer)
     # for init in model_graph.initializer:
@@ -85,13 +86,13 @@ def keras_builder(onnx_model, native_groupconv:bool=False):
     # node = what happens to inputs
     for node in model_graph.node:
         op_name, node_inputs, node_outputs = node.op_type, node.input, node.output
-        print("\n\nop name: ", op_name)
+        # print("\n\nop name: ", op_name)
         new_node_inputs = []
         for ele in node_inputs:
             new_node_inputs.append(ele)
         node_inputs = new_node_inputs
         op_attr = decode_node_attribute(node)
-        print('op_attr::: ', op_attr)
+        # print('op_attr::: ', op_attr)
         tf_operator = OPERATOR.get(op_name)
         if tf_operator is None:
             raise KeyError(f"{op_name} not implemented yet")
@@ -101,12 +102,12 @@ def keras_builder(onnx_model, native_groupconv:bool=False):
         #     print('First inputt: ', _inputs)
         #     if len(node_inputs)>1:
         #         print('Another input: ',tf_tensor[node_inputs[1]] )
-        print('node outpussss: ', node_outputs)
+        # print('node outpussss: ', node_outputs)
         for index in range(len(node_outputs)):
             # all inputs to this op
-            print('node_inputs: ', node_inputs)
+            # print('node_inputs: ', node_inputs)
             # print('deserialize: ', *node_inputs)
-            print('tf operator: ', tf_operator)
+            # print('tf operator: ', tf_operator)
             # output = tf_operator(tf_tensor, onnx_weights, node_inputs, op_attr, index=index)(_inputs)
             _inputs = []
             for inner in node_inputs:
@@ -119,7 +120,7 @@ def keras_builder(onnx_model, native_groupconv:bool=False):
                     
             # print("BEFORE: INPUTT: ", _inputs)
             output = tf_operator(tf_tensor, onnx_weights, node_inputs, op_attr, index=index)(*_inputs)
-            print("outputt: ", output)
+            # print("outputt: ", output)
             tf_tensor[node_outputs[index]] = output
             # print("tffff updated: ", tf_tensor)
     
@@ -127,18 +128,25 @@ def keras_builder(onnx_model, native_groupconv:bool=False):
         build keras model
     '''
     input_nodes = [tf_tensor[x.name] for x in model_graph.input]
-    # print("FINAL inputs: ", input_nodes)
+    # outputs_nodes = []
+    # for x in model_graph.output:
+    #     if not(isinstance(tf_tensor[x.name], np.ndarray)):
+    #         outputs_nodes.append(tf_tensor[x.name])
+    # outputs_nodes = [tf_tensor[x.name] if not(isinstance(tf_tensor[x.name], np.ndarray)) for x in model_graph.output]
     outputs_nodes = [tf_tensor[x.name] for x in model_graph.output]
     # print("FINAL outputs: ", outputs_nodes)
+
     keras_model = keras.Model(inputs=input_nodes, outputs=outputs_nodes)
     keras_model.trainable = False
     keras_model.summary()
     print("All Layers: ", keras_model.layers)
     print('\n\n\n')
-    print("Config ALL Layers: ")
-    for layer in keras_model.layers:
-        print('Name: ',layer.name)
-        print(layer.get_config())
+    print('input node: ', model_graph.input)
+    print('output node: ', model_graph.output)
+    # print("Config ALL Layers: ")
+    # for layer in keras_model.layers:
+    #     print('Name: ',layer.name)
+    #     print(layer.get_config())
     # for layer in keras_model.layers:
     #     layer.trainable = True
     # print('Later All Layers: ',keras_model.layers )
